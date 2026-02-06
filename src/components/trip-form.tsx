@@ -27,7 +27,11 @@ export function TripForm({ onSubmit, editingTrip, onCancelEdit }: Props) {
   useEffect(() => {
     if (editingTrip) {
       setForm(editingTrip);
+      return;
     }
+
+    setForm(initialForm);
+    setError('');
   }, [editingTrip]);
 
   const computedMiles = form.oneWayMiles > 0 ? totalMilesForTrip(form) : 0;
