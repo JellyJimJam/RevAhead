@@ -166,7 +166,7 @@ export default function HomePage() {
       if (editingTrip) {
         const saved = await updateTrip(editingTrip.id, input);
         try {
-          await setTripChildren(saved.id, childIds, userId);
+          await setTripChildren(saved.id, childIds);
         } catch (err) {
           console.error('[trip-children] save error:', err);
           setError('Failed to save trip.');
@@ -181,7 +181,7 @@ export default function HomePage() {
 
       const created = await createTrip(input, userId);
       try {
-        await setTripChildren(created.id, childIds, userId);
+        await setTripChildren(created.id, childIds);
       } catch (err) {
         console.error('[trip-children] save error:', err);
         setError('Failed to save trip.');
