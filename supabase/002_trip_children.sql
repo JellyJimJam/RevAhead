@@ -1,4 +1,6 @@
 -- Trip <-> Children join table
+-- Note: trip_children intentionally has no user_id column.
+-- Ownership is enforced via RLS using the parent trips.user_id field.
 
 create table if not exists public.trip_children (
   id uuid primary key default gen_random_uuid(),

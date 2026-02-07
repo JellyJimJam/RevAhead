@@ -56,7 +56,12 @@ export function TripForm({
       setError('Please complete required fields and enter miles greater than 0.');
       return;
     }
-    if (!selectedChildIds.length) {
+    if (!children.length) {
+      setError('Please add at least one child before saving a trip.');
+      return;
+    }
+    const uniqueChildIds = Array.from(new Set(selectedChildIds));
+    if (!uniqueChildIds.length) {
       setError('Please select at least one child.');
       return;
     }
@@ -66,7 +71,7 @@ export function TripForm({
       destinationName: form.destinationName.trim(),
       destinationAddress: form.destinationAddress?.trim(),
       notes: form.notes?.trim(),
-    }, selectedChildIds);
+    }, uniqueChildIds);
 
     if (!editingTrip) {
       setForm(initialForm);
@@ -74,11 +79,8 @@ export function TripForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">{editingTrip ? 'Edit Trip' : 'Add a Trip'}</h2>
-        <p className="text-xs text-slate-500">Log a trip and link it to at least one child.</p>
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="text-lg font-semibold text-slate-900">{editingTrip ? 'Edit Trip' : 'Add a Trip'}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">Date*
           <input type="date" value={form.date} onChange={(e) => setForm((curr) => ({ ...curr, date: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" required />
@@ -107,7 +109,7 @@ export function TripForm({
                     checked={checked}
                     onChange={(event) => {
                       const next = event.target.checked
-                        ? [...selectedChildIds, child.id]
+                        ? Array.from(new Set([...selectedChildIds, child.id]))
                         : selectedChildIds.filter((id) => id !== child.id);
                       onChildIdsChange(next);
                     }}

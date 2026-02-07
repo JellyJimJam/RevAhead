@@ -7,6 +7,7 @@ type TripChildRow = {
   child_id: string;
 };
 
+// trip_children rows are scoped via trips.user_id RLS policies, not a user_id column.
 export const listTripChildren = async (tripIds: string[]): Promise<TripChildrenMap> => {
   if (!tripIds.length) {
     return {};
