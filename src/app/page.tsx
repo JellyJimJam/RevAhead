@@ -1,14 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TripForm } from '@/components/trip-form';
 import { TripTable } from '@/components/trip-table';
 import { calculateTotals } from '@/lib/trips';
-import { Trip, TripInput } from '@/lib/types';
+import { Child, Trip, TripInput } from '@/lib/types';
 import { createTrip, deleteTrip, listTrips, updateTrip } from '@/lib/db/trips';
+import { listChildren } from '@/lib/db/children';
+import { listTripChildren, setTripChildren } from '@/lib/db/tripChildren';
 import { bootstrapUserProfile } from '@/lib/db/users';
 import { supabase } from '@/lib/supabaseClient';
+
+const currentMonth = new Date().toISOString().slice(0, 7);
 
 export default function HomePage() {
   const router = useRouter();
@@ -16,6 +21,12 @@ export default function HomePage() {
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [children, setChildren] = useState<Child[]>([]);
+  const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const [monthFilter, setMonthFilter] = useState(currentMonth);
+  const [allMonths, setAllMonths] = useState(false);
+  const [childFilterId, setChildFilterId] = useState('all');
+  const [sharedOnly, setSharedOnly] = useState(false);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -27,8 +38,15 @@ export default function HomePage() {
 
       try {
         await bootstrapUserProfile();
-        const fetchedTrips = await listTrips();
-        setTrips(fetchedTrips);
+        const [fetchedTrips, fetchedChildren] = await Promise.all([listTrips(), listChildren()]);
+        const tripIds = fetchedTrips.map((trip) => trip.id);
+        const tripChildrenMap = await listTripChildren(tripIds);
+        const hydratedTrips = fetchedTrips.map((trip) => ({
+          ...trip,
+          childIds: tripChildrenMap[trip.id] ?? [],
+        }));
+        setTrips(hydratedTrips);
+        setChildren(fetchedChildren);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unable to load trips.');
       } finally {
@@ -49,19 +67,45 @@ export default function HomePage() {
     };
   }, [router]);
 
-  const totals = useMemo(() => calculateTotals(trips), [trips]);
+  useEffect(() => {
+    setSelectedChildIds(editingTrip?.childIds ?? []);
+  }, [editingTrip]);
 
-  const handleAddOrUpdate = async (input: TripInput) => {
+  const filteredTrips = useMemo(() => {
+    let result = trips;
+
+    if (!allMonths && monthFilter) {
+      result = result.filter((trip) => trip.date.startsWith(monthFilter));
+    }
+
+    if (childFilterId !== 'all') {
+      result = result.filter((trip) => trip.childIds?.includes(childFilterId));
+    }
+
+    if (sharedOnly) {
+      result = result.filter((trip) => (trip.childIds?.length ?? 0) >= 2);
+    }
+
+    return result;
+  }, [trips, allMonths, monthFilter, childFilterId, sharedOnly]);
+
+  const totals = useMemo(() => calculateTotals(filteredTrips), [filteredTrips]);
+
+  const handleAddOrUpdate = async (input: TripInput, childIds: string[]) => {
     try {
       if (editingTrip) {
         const saved = await updateTrip(editingTrip.id, input);
-        setTrips((curr) => curr.map((trip) => (trip.id === saved.id ? saved : trip)));
+        await setTripChildren(saved.id, childIds);
+        setTrips((curr) => curr.map((trip) => (trip.id === saved.id ? { ...saved, childIds } : trip)));
         setEditingTrip(null);
+        setSelectedChildIds([]);
         return;
       }
 
       const created = await createTrip(input);
-      setTrips((curr) => [created, ...curr]);
+      await setTripChildren(created.id, childIds);
+      setTrips((curr) => [{ ...created, childIds }, ...curr]);
+      setSelectedChildIds([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save trip.');
     }
@@ -80,8 +124,8 @@ export default function HomePage() {
   };
 
   const handleExport = () => {
-    const headers = ['date', 'reason', 'destinationName', 'destinationAddress', 'oneWayMiles', 'roundTrip', 'totalMiles', 'notes'];
-    const rows = trips.map((trip) => [
+    const headers = ['date', 'reason', 'destinationName', 'destinationAddress', 'oneWayMiles', 'roundTrip', 'totalMiles', 'notes', 'children'];
+    const rows = filteredTrips.map((trip) => [
       trip.date,
       trip.reason,
       trip.destinationName,
@@ -90,6 +134,9 @@ export default function HomePage() {
       trip.roundTrip,
       trip.oneWayMiles * (trip.roundTrip ? 2 : 1),
       trip.notes ?? '',
+      (trip.childIds ?? [])
+        .map((childId) => children.find((child) => child.id === childId)?.nickname ?? childId)
+        .join('; '),
     ]);
 
     const csv = [
@@ -127,11 +174,40 @@ export default function HomePage() {
             <h1 className="text-2xl font-bold text-slate-900">LarLik</h1>
             <p className="mt-2 text-sm text-slate-600">A consumer-friendly mileage logging app for foster care parents. Track every trip for reimbursement, reporting, and peace of mind.</p>
           </div>
-          <button onClick={handleLogout} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Logout</button>
+          <div className="flex items-center gap-2">
+            <Link href="/children" className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Children</Link>
+            <button onClick={handleLogout} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Logout</button>
+          </div>
         </div>
       </header>
 
       {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="text-sm font-medium text-slate-700">Month
+            <input type="month" value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)} disabled={allMonths} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+          </label>
+          <label className="text-sm font-medium text-slate-700">Child
+            <select value={childFilterId} onChange={(event) => setChildFilterId(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2">
+              <option value="all">All children</option>
+              {children.map((child) => (
+                <option key={child.id} value={child.id}>{child.nickname}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-col justify-end gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={allMonths} onChange={(event) => setAllMonths(event.target.checked)} />
+              All months
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={sharedOnly} onChange={(event) => setSharedOnly(event.target.checked)} />
+              Shared trips only
+            </label>
+          </div>
+        </div>
+      </section>
 
       <section className="mb-6 grid gap-3 sm:grid-cols-3">
         <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -149,15 +225,22 @@ export default function HomePage() {
       </section>
 
       <section className="mb-6">
-        <TripForm onSubmit={handleAddOrUpdate} editingTrip={editingTrip} onCancelEdit={() => setEditingTrip(null)} />
+        <TripForm
+          onSubmit={handleAddOrUpdate}
+          editingTrip={editingTrip}
+          onCancelEdit={() => setEditingTrip(null)}
+          children={children}
+          selectedChildIds={selectedChildIds}
+          onChildIdsChange={setSelectedChildIds}
+        />
       </section>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Trip Log</h2>
-          <button onClick={handleExport} disabled={!trips.length} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">Export CSV</button>
+          <button onClick={handleExport} disabled={!filteredTrips.length} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300">Export CSV</button>
         </div>
-        <TripTable trips={trips} onEdit={setEditingTrip} onDelete={handleDelete} />
+        <TripTable trips={filteredTrips} onEdit={setEditingTrip} onDelete={handleDelete} />
       </section>
     </main>
   );

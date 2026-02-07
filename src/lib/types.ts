@@ -12,6 +12,7 @@ export type Trip = {
   roundTrip: boolean;
   notes?: string;
   createdAt: string;
+  childIds?: string[];
 };
 
 export type TripInput = Omit<Trip, 'id' | 'createdAt'>;
@@ -30,3 +31,10 @@ export type DbTrip = {
 };
 
 export type UserRole = 'parent' | 'employee';
+
+export type Child = {
+  id: string;
+  user_id: string;
+  nickname: string;
+  created_at: string;
+};

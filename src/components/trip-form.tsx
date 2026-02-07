@@ -1,13 +1,16 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { TRIP_REASONS, Trip, TripInput } from '@/lib/types';
+import { Child, TRIP_REASONS, Trip, TripInput } from '@/lib/types';
 import { totalMilesForTrip } from '@/lib/trips';
 
 type Props = {
-  onSubmit: (trip: TripInput) => void;
+  onSubmit: (trip: TripInput, childIds: string[]) => void;
   editingTrip?: Trip | null;
   onCancelEdit?: () => void;
+  children: Child[];
+  selectedChildIds: string[];
+  onChildIdsChange: (childIds: string[]) => void;
 };
 
 const initialForm: TripInput = {
@@ -20,7 +23,14 @@ const initialForm: TripInput = {
   notes: '',
 };
 
-export function TripForm({ onSubmit, editingTrip, onCancelEdit }: Props) {
+export function TripForm({
+  onSubmit,
+  editingTrip,
+  onCancelEdit,
+  children,
+  selectedChildIds,
+  onChildIdsChange,
+}: Props) {
   const [form, setForm] = useState<TripInput>(editingTrip ?? initialForm);
   const [error, setError] = useState('');
 
@@ -48,7 +58,7 @@ export function TripForm({ onSubmit, editingTrip, onCancelEdit }: Props) {
       destinationName: form.destinationName.trim(),
       destinationAddress: form.destinationAddress?.trim(),
       notes: form.notes?.trim(),
-    });
+    }, selectedChildIds);
 
     if (!editingTrip) {
       setForm(initialForm);
@@ -90,6 +100,34 @@ export function TripForm({ onSubmit, editingTrip, onCancelEdit }: Props) {
       <label className="block text-sm font-medium text-slate-700">Notes (optional)
         <textarea value={form.notes} onChange={(e) => setForm((curr) => ({ ...curr, notes: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" rows={3} />
       </label>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-700">Children (optional)</p>
+        {children.length ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {children.map((child) => {
+              const checked = selectedChildIds.includes(child.id);
+              return (
+                <label key={child.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...selectedChildIds, child.id]
+                        : selectedChildIds.filter((id) => id !== child.id);
+                      onChildIdsChange(next);
+                    }}
+                  />
+                  {child.nickname}
+                </label>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">No children yet. Add nicknames on the Children page.</p>
+        )}
+      </div>
 
       <p className="text-sm text-brand-700">Calculated total miles: <span className="font-semibold">{computedMiles.toFixed(1)}</span></p>
       {error && <p className="text-sm text-red-600">{error}</p>}
