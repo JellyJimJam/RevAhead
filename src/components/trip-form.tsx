@@ -11,6 +11,8 @@ type Props = {
   children: Child[];
   selectedChildIds: string[];
   onChildIdsChange: (childIds: string[]) => void;
+  childrenLoading: boolean;
+  childrenError?: string;
 };
 
 const initialForm: TripInput = {
@@ -30,6 +32,8 @@ export function TripForm({
   children,
   selectedChildIds,
   onChildIdsChange,
+  childrenLoading,
+  childrenError,
 }: Props) {
   const [form, setForm] = useState<TripInput>(editingTrip ?? initialForm);
   const [error, setError] = useState('');
@@ -103,7 +107,11 @@ export function TripForm({
 
       <div className="space-y-2">
         <p className="text-sm font-medium text-slate-700">Children (optional)</p>
-        {children.length ? (
+        {childrenLoading ? (
+          <p className="text-xs text-slate-500">Loading children...</p>
+        ) : childrenError ? (
+          <p className="text-xs text-red-600">Couldn’t load children.</p>
+        ) : children.length ? (
           <div className="grid gap-2 sm:grid-cols-2">
             {children.map((child) => {
               const checked = selectedChildIds.includes(child.id);

@@ -23,6 +23,8 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
+  const [childrenLoading, setChildrenLoading] = useState(true);
+  const [childrenError, setChildrenError] = useState('');
   const [monthFilter, setMonthFilter] = useState(currentMonth);
   const [allMonths, setAllMonths] = useState(false);
   const [childFilterId, setChildFilterId] = useState('all');
@@ -47,9 +49,17 @@ export default function HomePage() {
         }));
         setTrips(hydratedTrips);
         setChildren(fetchedChildren);
+        setChildrenError('');
+        console.log('[children] loaded count:', fetchedChildren.length);
+        if (fetchedChildren.length) {
+          console.log('[children] first record:', fetchedChildren[0]);
+        }
       } catch (err) {
+        console.error('[children] load error:', err);
         setError(err instanceof Error ? err.message : 'Unable to load trips.');
+        setChildrenError('Couldn’t load children.');
       } finally {
+        setChildrenLoading(false);
         setLoading(false);
       }
     };
@@ -232,6 +242,8 @@ export default function HomePage() {
           children={children}
           selectedChildIds={selectedChildIds}
           onChildIdsChange={setSelectedChildIds}
+          childrenLoading={childrenLoading}
+          childrenError={childrenError}
         />
       </section>
 

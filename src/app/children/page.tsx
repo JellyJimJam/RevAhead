@@ -115,7 +115,6 @@ export default function ChildrenPage() {
             <div key={child.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <div>
                 <p className="text-sm font-semibold text-slate-900">{child.nickname}</p>
-                <p className="text-xs text-slate-500">ID: {child.id}</p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => handleEdit(child)} className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700">Edit</button>
