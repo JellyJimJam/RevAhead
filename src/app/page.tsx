@@ -105,7 +105,7 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'revahead-mileage-trips.csv';
+    link.download = 'larlik-mileage-trips.csv';
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -124,7 +124,7 @@ export default function HomePage() {
       <header className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">RevAhead Mileage</h1>
+            <h1 className="text-2xl font-bold text-slate-900">LarLik</h1>
             <p className="mt-2 text-sm text-slate-600">A consumer-friendly mileage logging app for foster care parents. Track every trip for reimbursement, reporting, and peace of mind.</p>
           </div>
           <button onClick={handleLogout} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Logout</button>

@@ -1,6 +1,6 @@
-# RevAhead Mileage
+# LarLik
 
-RevAhead Mileage is a mobile-friendly mileage logging app for foster care parents.
+LarLik is a mobile-friendly mileage logging app for foster care parents.
 
 ## Tech
 - Next.js App Router + TypeScript

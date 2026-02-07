@@ -83,7 +83,7 @@ export default function LoginPage() {
   return (
     <main className="mx-auto w-full max-w-md px-4 py-10">
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900">RevAhead Mileage</h1>
+        <h1 className="text-2xl font-bold text-slate-900">LarLik</h1>
         <p className="mt-2 text-sm text-slate-600">Sign in to securely store trips in your private account.</p>
 
         <div className="mt-4 flex rounded-lg border border-slate-300 p-1 text-sm">
