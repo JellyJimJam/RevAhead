@@ -74,8 +74,11 @@ export function TripForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">{editingTrip ? 'Edit Trip' : 'Add a Trip'}</h2>
+    <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">{editingTrip ? 'Edit Trip' : 'Add a Trip'}</h2>
+        <p className="text-xs text-slate-500">Log a trip and link it to at least one child.</p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-700">Date*
           <input type="date" value={form.date} onChange={(e) => setForm((curr) => ({ ...curr, date: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" required />
@@ -92,13 +95,7 @@ export function TripForm({
         {childrenLoading ? (
           <p className="text-xs text-slate-500">Loading children...</p>
         ) : childrenError ? (
-          <div className="space-y-1 text-xs text-red-600">
-            <p>Couldn’t load children.</p>
-            <details className="text-slate-500">
-              <summary className="cursor-pointer">Details</summary>
-              <p className="mt-1 whitespace-pre-wrap">{childrenError}</p>
-            </details>
-          </div>
+          <p className="text-xs text-red-600">Couldn’t load children.</p>
         ) : children.length ? (
           <div className="grid gap-2 sm:grid-cols-2">
             {children.map((child) => {

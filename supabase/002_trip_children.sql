@@ -8,6 +8,9 @@ create table if not exists public.trip_children (
   unique (trip_id, child_id)
 );
 
+alter table if exists public.trip_children
+  drop column if exists user_id;
+
 alter table public.trip_children enable row level security;
 
 create policy "trip_children_select_own" on public.trip_children
