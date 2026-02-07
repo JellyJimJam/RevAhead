@@ -56,6 +56,10 @@ export function TripForm({
       setError('Please complete required fields and enter miles greater than 0.');
       return;
     }
+    if (!selectedChildIds.length) {
+      setError('Please select at least one child.');
+      return;
+    }
     setError('');
     onSubmit({
       ...form,
@@ -83,34 +87,18 @@ export function TripForm({
         </label>
       </div>
 
-      <label className="block text-sm font-medium text-slate-700">Destination name*
-        <input value={form.destinationName} onChange={(e) => setForm((curr) => ({ ...curr, destinationName: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="County office, school, clinic..." required />
-      </label>
-
-      <label className="block text-sm font-medium text-slate-700">Destination address (optional)
-        <input value={form.destinationAddress} onChange={(e) => setForm((curr) => ({ ...curr, destinationAddress: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="123 Main St" />
-      </label>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-medium text-slate-700">One-way miles*
-          <input type="number" min={0.1} step={0.1} value={form.oneWayMiles || ''} onChange={(e) => setForm((curr) => ({ ...curr, oneWayMiles: Number(e.target.value) }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" required />
-        </label>
-        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 pt-7">
-          <input type="checkbox" checked={form.roundTrip} onChange={(e) => setForm((curr) => ({ ...curr, roundTrip: e.target.checked }))} />
-          Round trip
-        </label>
-      </div>
-
-      <label className="block text-sm font-medium text-slate-700">Notes (optional)
-        <textarea value={form.notes} onChange={(e) => setForm((curr) => ({ ...curr, notes: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" rows={3} />
-      </label>
-
       <div className="space-y-2">
-        <p className="text-sm font-medium text-slate-700">Children (optional)</p>
+        <p className="text-sm font-medium text-slate-700">Children*</p>
         {childrenLoading ? (
           <p className="text-xs text-slate-500">Loading children...</p>
         ) : childrenError ? (
-          <p className="text-xs text-red-600">Couldn’t load children.</p>
+          <div className="space-y-1 text-xs text-red-600">
+            <p>Couldn’t load children.</p>
+            <details className="text-slate-500">
+              <summary className="cursor-pointer">Details</summary>
+              <p className="mt-1 whitespace-pre-wrap">{childrenError}</p>
+            </details>
+          </div>
         ) : children.length ? (
           <div className="grid gap-2 sm:grid-cols-2">
             {children.map((child) => {
@@ -137,11 +125,33 @@ export function TripForm({
         )}
       </div>
 
+      <label className="block text-sm font-medium text-slate-700">Destination name*
+        <input value={form.destinationName} onChange={(e) => setForm((curr) => ({ ...curr, destinationName: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="County office, school, clinic..." required />
+      </label>
+
+      <label className="block text-sm font-medium text-slate-700">Destination address (optional)
+        <input value={form.destinationAddress} onChange={(e) => setForm((curr) => ({ ...curr, destinationAddress: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="123 Main St" />
+      </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm font-medium text-slate-700">One-way miles*
+          <input type="number" min={0.1} step={0.1} value={form.oneWayMiles || ''} onChange={(e) => setForm((curr) => ({ ...curr, oneWayMiles: Number(e.target.value) }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" required />
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 pt-7">
+          <input type="checkbox" checked={form.roundTrip} onChange={(e) => setForm((curr) => ({ ...curr, roundTrip: e.target.checked }))} />
+          Round trip
+        </label>
+      </div>
+
+      <label className="block text-sm font-medium text-slate-700">Notes (optional)
+        <textarea value={form.notes} onChange={(e) => setForm((curr) => ({ ...curr, notes: e.target.value }))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" rows={3} />
+      </label>
+
       <p className="text-sm text-brand-700">Calculated total miles: <span className="font-semibold">{computedMiles.toFixed(1)}</span></p>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex gap-2">
-        <button type="submit" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+        <button type="submit" disabled={childrenLoading || !!childrenError || !selectedChildIds.length} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-500">
           {editingTrip ? 'Save Changes' : 'Save Trip'}
         </button>
         {editingTrip && (

@@ -32,7 +32,7 @@ export const listTripChildren = async (tripIds: string[]): Promise<TripChildrenM
   return map;
 };
 
-export const setTripChildren = async (tripId: string, childIds: string[]) => {
+export const setTripChildren = async (tripId: string, childIds: string[], userId?: string) => {
   const { error: deleteError } = await supabase
     .from('trip_children')
     .delete()
@@ -46,9 +46,13 @@ export const setTripChildren = async (tripId: string, childIds: string[]) => {
     return;
   }
 
+  const rows = childIds.map((childId) =>
+    userId ? { trip_id: tripId, child_id: childId, user_id: userId } : { trip_id: tripId, child_id: childId },
+  );
+
   const { error: insertError } = await supabase
     .from('trip_children')
-    .insert(childIds.map((childId) => ({ trip_id: tripId, child_id: childId })));
+    .insert(rows);
 
   if (insertError) {
     throw insertError;

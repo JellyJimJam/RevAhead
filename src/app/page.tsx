@@ -15,53 +15,108 @@ import { supabase } from '@/lib/supabaseClient';
 
 const currentMonth = new Date().toISOString().slice(0, 7);
 
+const formatSupabaseError = (err: unknown) => {
+  if (err && typeof err === 'object') {
+    const record = err as { message?: string; code?: string; details?: string; hint?: string };
+    return [record.message, record.code && `Code: ${record.code}`, record.details, record.hint]
+      .filter(Boolean)
+      .join('\n');
+  }
+  return String(err);
+};
+
 export default function HomePage() {
   const router = useRouter();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [errorDetails, setErrorDetails] = useState('');
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [childrenLoading, setChildrenLoading] = useState(true);
   const [childrenError, setChildrenError] = useState('');
+  const [userId, setUserId] = useState<string>('');
   const [monthFilter, setMonthFilter] = useState(currentMonth);
   const [allMonths, setAllMonths] = useState(false);
   const [childFilterId, setChildFilterId] = useState('all');
   const [sharedOnly, setSharedOnly] = useState(false);
 
+  const loadTripsWithChildren = async (currentUserId: string) => {
+    let fetchedTrips: Trip[] = [];
+
+    try {
+      fetchedTrips = await listTrips(currentUserId);
+      setError('');
+      setErrorDetails('');
+    } catch (err) {
+      console.error('[trips] load error:', err);
+      setError('Unable to load trips.');
+      setErrorDetails(formatSupabaseError(err));
+      setTrips([]);
+      return;
+    }
+
+    let tripChildrenMap: Record<string, string[]> = {};
+    if (fetchedTrips.length) {
+      try {
+        tripChildrenMap = await listTripChildren(fetchedTrips.map((trip) => trip.id));
+      } catch (err) {
+        console.error('[trip-children] load error:', err);
+        setError('Unable to load trips.');
+        setErrorDetails(formatSupabaseError(err));
+      }
+    }
+
+    const hydratedTrips = fetchedTrips.map((trip) => ({
+      ...trip,
+      childIds: tripChildrenMap[trip.id] ?? [],
+    }));
+    setTrips(hydratedTrips);
+  };
+
+  const loadChildren = async (currentUserId: string) => {
+    setChildrenLoading(true);
+    try {
+      const fetchedChildren = await listChildren(currentUserId);
+      setChildren(fetchedChildren);
+      setChildrenError('');
+      console.log('[children] loaded count:', fetchedChildren.length);
+      if (fetchedChildren.length) {
+        console.log('[children] first record:', fetchedChildren[0]);
+      }
+    } catch (err) {
+      console.error('[children] load error:', err);
+      setChildrenError(formatSupabaseError(err));
+    } finally {
+      setChildrenLoading(false);
+    }
+  };
+
   useEffect(() => {
     const bootstrap = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('[auth] session error:', sessionError);
+      }
       if (!data.session) {
         router.replace('/login');
         return;
       }
 
+      const currentUserId = data.session.user.id;
+      setUserId(currentUserId);
+      setError('');
+      setErrorDetails('');
+
       try {
         await bootstrapUserProfile();
-        const [fetchedTrips, fetchedChildren] = await Promise.all([listTrips(), listChildren()]);
-        const tripIds = fetchedTrips.map((trip) => trip.id);
-        const tripChildrenMap = await listTripChildren(tripIds);
-        const hydratedTrips = fetchedTrips.map((trip) => ({
-          ...trip,
-          childIds: tripChildrenMap[trip.id] ?? [],
-        }));
-        setTrips(hydratedTrips);
-        setChildren(fetchedChildren);
-        setChildrenError('');
-        console.log('[children] loaded count:', fetchedChildren.length);
-        if (fetchedChildren.length) {
-          console.log('[children] first record:', fetchedChildren[0]);
-        }
       } catch (err) {
-        console.error('[children] load error:', err);
-        setError(err instanceof Error ? err.message : 'Unable to load trips.');
-        setChildrenError('Couldn’t load children.');
-      } finally {
-        setChildrenLoading(false);
-        setLoading(false);
+        console.error('[users] bootstrap error:', err);
       }
+
+      await Promise.all([loadTripsWithChildren(currentUserId), loadChildren(currentUserId)]);
+      setLoading(false);
     };
 
     bootstrap();
@@ -102,22 +157,44 @@ export default function HomePage() {
   const totals = useMemo(() => calculateTotals(filteredTrips), [filteredTrips]);
 
   const handleAddOrUpdate = async (input: TripInput, childIds: string[]) => {
+    if (!userId) {
+      setError('Failed to save trip.');
+      setErrorDetails('Missing authenticated user.');
+      return;
+    }
     try {
       if (editingTrip) {
         const saved = await updateTrip(editingTrip.id, input);
-        await setTripChildren(saved.id, childIds);
-        setTrips((curr) => curr.map((trip) => (trip.id === saved.id ? { ...saved, childIds } : trip)));
+        try {
+          await setTripChildren(saved.id, childIds, userId);
+        } catch (err) {
+          console.error('[trip-children] save error:', err);
+          setError('Failed to save trip.');
+          setErrorDetails(formatSupabaseError(err));
+          return;
+        }
+        await loadTripsWithChildren(userId);
         setEditingTrip(null);
         setSelectedChildIds([]);
         return;
       }
 
-      const created = await createTrip(input);
-      await setTripChildren(created.id, childIds);
-      setTrips((curr) => [{ ...created, childIds }, ...curr]);
+      const created = await createTrip(input, userId);
+      try {
+        await setTripChildren(created.id, childIds, userId);
+      } catch (err) {
+        console.error('[trip-children] save error:', err);
+        setError('Failed to save trip.');
+        setErrorDetails(formatSupabaseError(err));
+        await deleteTrip(created.id);
+        return;
+      }
+      await loadTripsWithChildren(userId);
       setSelectedChildIds([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save trip.');
+      console.error('[trips] save error:', err);
+      setError('Failed to save trip.');
+      setErrorDetails(formatSupabaseError(err));
     }
   };
 
@@ -191,7 +268,17 @@ export default function HomePage() {
         </div>
       </header>
 
-      {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p>{error}</p>
+          {errorDetails && (
+            <details className="mt-2 text-xs text-slate-600">
+              <summary className="cursor-pointer">Details</summary>
+              <p className="mt-1 whitespace-pre-wrap">{errorDetails}</p>
+            </details>
+          )}
+        </div>
+      )}
 
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-3">

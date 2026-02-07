@@ -56,11 +56,9 @@ const mapDbTripToTrip = (trip: DbTrip): Trip => {
   };
 };
 
-export const listTrips = async (): Promise<Trip[]> => {
-  const { data, error } = await supabase
-    .from('trips')
-    .select('*')
-    .order('date', { ascending: false });
+export const listTrips = async (userId?: string): Promise<Trip[]> => {
+  const query = supabase.from('trips').select('*').order('date', { ascending: false });
+  const { data, error } = userId ? await query.eq('user_id', userId) : await query;
 
   if (error) {
     throw error;
@@ -69,12 +67,13 @@ export const listTrips = async (): Promise<Trip[]> => {
   return ((data ?? []) as DbTrip[]).map(mapDbTripToTrip);
 };
 
-export const createTrip = async (input: TripInput): Promise<Trip> => {
+export const createTrip = async (input: TripInput, userId?: string): Promise<Trip> => {
   const totalMiles = input.oneWayMiles * (input.roundTrip ? 2 : 1);
 
   const { data, error } = await supabase
     .from('trips')
     .insert({
+      user_id: userId,
       date: input.date,
       start_text: null,
       end_text: input.destinationName,

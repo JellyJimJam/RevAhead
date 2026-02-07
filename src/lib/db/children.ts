@@ -1,11 +1,9 @@
 import { supabase } from '@/lib/supabaseClient';
 import { Child } from '@/lib/types';
 
-export const listChildren = async (): Promise<Child[]> => {
-  const { data, error } = await supabase
-    .from('children')
-    .select('*')
-    .order('created_at', { ascending: true });
+export const listChildren = async (userId?: string): Promise<Child[]> => {
+  const query = supabase.from('children').select('*').order('created_at', { ascending: true });
+  const { data, error } = userId ? await query.eq('user_id', userId) : await query;
 
   if (error) {
     throw error;
